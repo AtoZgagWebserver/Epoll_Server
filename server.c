@@ -1,14 +1,18 @@
 #include "lib/headerlist.h"
-#include "lib/threadfunc.h"
+#include "lib/readdata.h"
+#include "lib/processepoll.h"
+
+struct QuestionList *question;
 
 int main(int argc, char* argv[])
 {
     //default set
-    if(argc < 3)
+    if(argc != 4)//./server portnum managernum workernum
     {
-        perror("Few argument");
+        perror("Argument num is wrong");
+        exit(1);
     }
-    int portnum = atoi(argv[1]), worknum = atoi(argv[2]);
+    int portnum = atoi(argv[1]), mannum = atoi(argv[2]), worknum = atoi(argv[3]);
     struct sockaddr_in sin, cli;
     int sd, ns, clientlen = sizeof(cli);
     
@@ -44,12 +48,12 @@ int main(int argc, char* argv[])
     // prepare for clients
     printf("Prepare to accept client\n");
 
-    printf("    Create workers\n");
-    
-    struct ThrInfo* worker = make_worker(worknum); 
-    
-    printf("    Create workers Done.\n");
+    printf("    Create epoll manager.\n");
 
+    struct EpollManager* epm_list = make_epoll_manager(mannum, worknum/mannum); 
+
+    printf("    Create epoll manager Done.\n")
+    
     printf("Ready for accept client\n");
 
     // accept the clients
@@ -57,16 +61,17 @@ int main(int argc, char* argv[])
     while(1)
     {
         next_worker_num = get_next_worker(worknum, worker);
-        struct Work *work = (struct Work*)malloc(sizeof(struct Work));
-        
-		if((work->ns=accept(sd,(struct sockaddr*)&cli,&clientlen))==-1)
+        int* ns = (int*)malloc(sizeof(int));
+
+		if((ns=accept(sd,(struct sockaddr*)&cli,&clientlen))==-1)
         {
 			perror("accept");
 			exit(1);
 		}
         printf("accept\n");
         printf("push work to worker[%d]\n", next_worker_num);
-        push(work, worker[next_worker_num].q);
+        add_fd_to_manager(epm_list[cnt].ep, ns);
+        cnt=(cnt+1)%mannum;
         printf("push done\n");
     }
 	close(sd);

@@ -1,4 +1,5 @@
 #include "threadfunc.h"
+#include "processepoll.h"
 #include "httpfunc.h"
 
 int handle_client(struct Work* w)
@@ -59,7 +60,7 @@ int handle_client(struct Work* w)
     }
     
     close(ns);
-    free(w);
+    //free(w);
 
     return 0;
 }
@@ -71,7 +72,15 @@ void* worker(void* arg) // worker number
     while(1) // thread 개수는 미정 차차 맞춰갈 예정임.
     {
         struct Work* w = pop(inf->q);
-        if(w == NULL)continue;
+        if(w == NULL)
+        {
+            printf("Stop Thread %d\n", inf->number);
+            pthread_mutex_lock(&(inf->mut));
+            pthread_cond_wait(&(inf->cond), &(inf->mut));
+            printf("Restart Thread %d\n", inf->number);
+            pthread_mutex_unlock(&(inf->mut));
+            continue;
+        }
         handle_client(w);
     }
 }
@@ -80,12 +89,16 @@ struct ThrInfo* make_worker(int work_num)
 {
     pthread_t* tid_list = (pthread_t*) malloc(sizeof(pthread_t)*work_num);
     struct ThrInfo* thrinflist = (struct ThrInfo*)malloc(sizeof(struct ThrInfo)*work_num);
-    
+    int tmp;
+
     for(int i=0; i<work_num; i++)
     {
         thrinflist[i].number = i;
         thrinflist[i].q = new_queue();
         thrinflist[i].ep_ins = epoll_create1(0);
+        tmp = pthread_cond_init(&(thrinflist[i].cond), NULL);
+        tmp = pthread_mutex_init(&(thrinflist[i].mut), NULL);
+
         pthread_create(&thrinflist[i].tid,NULL,worker,(void*)&thrinflist[i]);
     }
 
@@ -141,7 +154,7 @@ struct Work* pop(struct Queue* q)
     return res;
 }
 
-void push(struct Work* w,struct Queue* q)
+void push(struct Work* w,struct Queue* q,pthread_cond_t* cond)
 {
     q->items[q->rear] = *w;
     q->rear = (q->rear + 1)%q->maxsize;
@@ -163,4 +176,7 @@ void push(struct Work* w,struct Queue* q)
         q->rear = q->maxsize + q->rear;
         q->maxsize*=2;
     }
+    printf("Send signal\n");
+    pthread_cond_signal(cond);
+    printf("Sending signal done\n");
 }
