@@ -4,53 +4,38 @@
 
 int handle_client(struct Work* data)
 {
-    char buf[HTTP_BUF_MAX_SIZE]; // 수신 버퍼
-    ssize_t n;
-    int data_len = strlen(data->msg);
+    struct HTTPRequest http_request = {0};
+    parse_http_request(data->msg, &http_request);
 
-    if(n>0){
-        struct HTTPRequest http_request;
-        memset(&http_request, 0, sizeof(struct HTTPRequest));
-
-        parse_http_request(data->msg, &http_request);
-
-        printf("Method: %s\n", http_request.method);
-        printf("Path: %s\n", http_request.path);
-        if (http_request.content_length > 0) {
-             printf("Content-Length: %d\n", http_request.content_length);
+    if(strcmp(http_request.method, "GET") == 0)
+    {
+        if(strcmp(http_request.path, "/quiz") == 0)
+        {
+            send_quiz(data->ns);
         }
-        if (strlen(http_request.body) > 0) {
-             printf("Body:\n%s\n", http_request.body);
-        }
-
-        //요청에 따라 어떻게 처리할지
-        if (strcmp(http_request.method, "GET") == 0) 
-        { //GET 요청의 경우
-            if(strcmp(http_request.path,"/quiz")==0){
-                send_quiz(data->ns);
-            }
-            else{
-                printf("get -> html리턴\n");
-                char file_path[512];
-                snprintf(file_path, sizeof(file_path), "./rsc/html/%s", http_request.path[0] == '/' ? http_request.path + 1 : http_request.path);
-                send_file_content(data->ns, file_path);
-            }
-        }
-        if (strcmp(http_request.method, "POST") == 0) 
-        {   
-            if(1){
-                printf("not found\n");
-                const char *not_found_response = 
-                    "HTTP/1.1 404 Not Found\r\n"
-                    "Content-Type: text/plain\r\n"
-                    "Content-Length: 13\r\n"
-                    "\r\n"
-                    "404 Not Found";
-                send(data->ns, not_found_response, strlen(not_found_response), 0);
-            }
+        else
+        {
+            char file_path[512];
+            snprintf(
+                file_path,
+                sizeof(file_path),
+                "./rsc/html/%s",
+                http_request.path[0] == '/' ? http_request.path + 1 : http_request.path
+            );
+            send_file_content(data->ns, file_path);
         }
     }
-    
+    else
+    {
+        const char * not_found_response =
+            "HTTP/1.1 404 Not Found\r\n"
+            "Content-Type: text/plain\r\n"
+            "Content-Length: 13\r\n"
+            "\r\n404 Not Found";
+        send(data->ns, not_found_response, strlen(not_found_response), 0);
+    }
+
+    close(data->ns);
     del_fd_from_manager(data->ep,data->ns);
 
     return 0;
