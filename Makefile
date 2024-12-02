@@ -3,7 +3,7 @@ CFLAGS = -g
 
 TARGET = server
 
-SRCS = server.c 
+SRCS = server.c lib/processepoll.c lib/httpfunc.c lib/readdata.c lib/threadfunc.c
 OBJS = $(SRCS:.c=.o)
 
 all: $(OBJS)
