@@ -15,6 +15,8 @@ struct ThrInfo
 struct Work
 {
     int ns;
+    int ep;
+    char* msg;
 };
 
 struct Queue

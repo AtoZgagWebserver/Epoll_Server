@@ -2,7 +2,15 @@
 #include "lib/readdata.h"
 #include "lib/processepoll.h"
 
+#define MAX_EVENT 1024
+
 struct QuestionList *question;
+
+void set_nonblocking(int fd)
+{
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
 
 int main(int argc, char* argv[])
 {
@@ -14,7 +22,7 @@ int main(int argc, char* argv[])
     }
     int portnum = atoi(argv[1]), mannum = atoi(argv[2]), worknum = atoi(argv[3]);
     struct sockaddr_in sin, cli;
-    int sd, ns, clientlen = sizeof(cli);
+    int sd, clientlen = sizeof(cli), cnt = 0;
     
     // create socket
     sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -45,34 +53,57 @@ int main(int argc, char* argv[])
         perror("listen error");
         exit(1);
     }
+
+    set_nonblocking(sd);
+
     // prepare for clients
     printf("Prepare to accept client\n");
 
     printf("    Create epoll manager.\n");
-
     struct EpollManager* epm_list = make_epoll_manager(mannum, worknum/mannum); 
-
-    printf("    Create epoll manager Done.\n")
+    printf("    Create epoll manager done.\n");
     
+    printf("    Read data\n");
+    question = read_gag();
+    printf("    Read gag done\n");
+
+    printf("    Preapre server epoll man\n");
+    int sv_ep = epoll_create1(0);
+    if(sv_ep == -1)
+    {
+        perror("sv_ep");
+        exit(1);
+    }
+    struct epoll_event ev = {0}, events[MAX_EVENT];
+    ev.events = EPOLLIN;
+    ev.data.fd = sd;
+    if(epoll_ctl(sv_ep,EPOLL_CTL_ADD, sd, &ev) == -1)
+    {
+        perror("epoll_ctl serv");
+        exit(1);
+    }
+    printf("    Prepare server epoll man done.\n");
+
     printf("Ready for accept client\n");
 
     // accept the clients
-    int next_worker_num;
+    int ns,ev_num;
     while(1)
     {
-        next_worker_num = get_next_worker(worknum, worker);
-        int* ns = (int*)malloc(sizeof(int));
-
+        ev_num = epoll_wait(sv_ep, events, MAX_EVENT, -1);
+        if(ev_num == -1)
+        {
+            perror("epoll_wait sv_ep");
+            exit(1);
+        }
 		if((ns=accept(sd,(struct sockaddr*)&cli,&clientlen))==-1)
         {
 			perror("accept");
 			exit(1);
 		}
-        printf("accept\n");
-        printf("push work to worker[%d]\n", next_worker_num);
+        set_nonblocking(ns);
         add_fd_to_manager(epm_list[cnt].ep, ns);
         cnt=(cnt+1)%mannum;
-        printf("push done\n");
     }
 	close(sd);
 }
