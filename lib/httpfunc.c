@@ -125,7 +125,7 @@ void send_quiz(int cli){
     char header[256];
     snprintf(header, sizeof(header), 
              "HTTP/1.1 200 OK\r\n"
-             "Content-Type: text/plain\r\n" //html로 테스트, css,javascript,csv, 이미지, 오디오, 비디오 등 다양한 형태가 있어서
+             "Content-Type: application/json\r\n" //html로 테스트, css,javascript,csv, 이미지, 오디오, 비디오 등 다양한 형태가 있어서
              "Content-Length: %ld\r\n" //요청한 데이터가 어떤건지 확인한느 부분이 필요?
              "\r\n", strlen(buf));
     send(cli, header, strlen(header), 0);
