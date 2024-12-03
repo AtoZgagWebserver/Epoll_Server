@@ -50,10 +50,10 @@ void* worker(void* arg) // worker number
         struct Work* w = pop(inf->q);
         if(w == NULL)
         {
-            printf("Stop Thread %d\n", inf->number);
+            //printf("Stop Thread %d\n", inf->number);
             pthread_mutex_lock(&(inf->mut));
             pthread_cond_wait(&(inf->cond), &(inf->mut));
-            printf("Restart Thread %d\n", inf->number);
+            //printf("Restart Thread %d\n", inf->number);
             pthread_mutex_unlock(&(inf->mut));
             continue;
         }
@@ -98,8 +98,8 @@ struct Queue* new_queue()
     struct Queue* q = (struct Queue*)malloc(sizeof(struct Queue));
 
     // initialize
-    q->items = (struct Work*)malloc(sizeof(struct Work));
-    q->maxsize = 1;
+    q->items = (struct Work*)malloc(sizeof(struct Work)*5000);
+    q->maxsize = 5000;
     q->front = 0;
     q->rear = 0;
 
@@ -150,7 +150,7 @@ void push(struct Work* w,struct Queue* q,pthread_cond_t* cond)
         q->rear = q->maxsize + q->rear;
         q->maxsize*=2;
     }
-    printf("Send signal\n");
+    //printf("Send signal\n");
     pthread_cond_signal(cond);
-    printf("Sending signal done\n");
+    //printf("Sending signal done\n");
 }
