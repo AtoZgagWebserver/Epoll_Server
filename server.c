@@ -96,14 +96,21 @@ int main(int argc, char* argv[])
             perror("epoll_wait sv_ep");
             exit(1);
         }
-		if((ns=accept(sd,(struct sockaddr*)&cli,&clientlen))==-1)
-        {
-			perror("accept");
-			exit(1);
-		}
-        set_nonblocking(ns);
-        add_fd_to_manager(epm_list[cnt].ep, ns);
-        cnt=(cnt+1)%mannum;
+        for (int i = 0; i < ev_num; i++) {
+            if (events[i].data.fd == sd) { // 새 연결 이벤트
+                ns = accept(sd, (struct sockaddr *)&cli, &clientlen);
+                if (ns == -1) {
+                    perror("accept");
+                    continue;
+                }
+                set_nonblocking(ns);
+                add_fd_to_manager(epm_list[cnt].ep, ns);
+                cnt = (cnt + 1) % mannum;
+            } else { 
+                // sd 외의 이벤트가 발생했을 경우 (일반적인 fd 이벤트 처리)
+                fprintf(stderr, "Unexpected event on fd: %d\n", events[i].data.fd);
+            }
+        }
     }
 	close(sd);
 }
